@@ -1,3 +1,4 @@
+```mermaid
 mindmap
   root((P13<br/>Effectifs Scolaires<br/>Rennes Métropole))
 
@@ -157,3 +158,4 @@ mindmap
         features.py
         train.py
         predict.py
+```
