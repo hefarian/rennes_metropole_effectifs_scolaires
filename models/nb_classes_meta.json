@@ -1,0 +1,24 @@
+{
+  "target": "nb_classes",
+  "model": "gradient_boosting",
+  "metrics": {
+    "rmse": 7.7231911407737295,
+    "mae": 2.750794494101992,
+    "r2": 0.9954854764447443,
+    "mape": 8.336918080003661,
+    "cv_r2_mean": 0.9847216215694177
+  },
+  "features": [
+    "population",
+    "pop_0_14_pct",
+    "natalite",
+    "densite",
+    "log_collectif",
+    "log_individuel",
+    "plh_logements",
+    "nb_mutations",
+    "nb_permis_logements"
+  ],
+  "trained_at": "2026-07-03T14:05:56.694434",
+  "n_samples": 688
+}

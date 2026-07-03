@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt -r requirements-api.txt
+          pip install pytest ruff nbformat
+
+      - name: Lint
+        run: ruff check src/ api/ database/scripts/ --ignore E402
+
+      - name: Import check
+        run: |
+          PYTHONPATH=src python -c "from p13.config import COMMUNES_INSEE; print(len(COMMUNES_INSEE))"
+
+      - name: Validate notebooks
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import nbformat
+
+          notebook_dir = Path("jupyter/notebooks")
+          notebooks = sorted(notebook_dir.glob("*.ipynb"))
+          if not notebooks:
+              raise SystemExit("No notebooks found in jupyter/notebooks")
+
+          for nb_path in notebooks:
+              with nb_path.open("r", encoding="utf-8") as f:
+                  nbformat.read(f, as_version=4)
+              print(f"Validated {nb_path}")
+          PY
+
+      - name: Run tests if present
+        run: |
+          if find . -type f -name "test*.py" | grep -q .; then
+            PYTHONPATH=src pytest -q
+          else
+            echo "No tests found, skipping pytest."
+          fi
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          docker compose build api streamlit jupyter etl

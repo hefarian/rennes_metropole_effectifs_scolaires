@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt requirements-jupyter.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-jupyter.txt
+
+COPY src /app/src
+COPY jupyter/notebooks /app/notebooks
+COPY models /app/models
+
+ENV PYTHONPATH=/app/src
+ENV MODELS_DIR=/app/models
+
+EXPOSE 8888
+
+CMD ["sh", "-c", "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=${JUPYTER_TOKEN:-p13-jupyter} --notebook-dir=/app/notebooks"]

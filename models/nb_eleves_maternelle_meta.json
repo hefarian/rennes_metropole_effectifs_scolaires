@@ -1,0 +1,24 @@
+{
+  "target": "nb_eleves_maternelle",
+  "model": "gradient_boosting",
+  "metrics": {
+    "rmse": 48.82343643725248,
+    "mae": 23.5275447583929,
+    "r2": 0.9979692399449475,
+    "mape": 10.55986614866763,
+    "cv_r2_mean": 0.9980702321849023
+  },
+  "features": [
+    "population",
+    "pop_0_14_pct",
+    "natalite",
+    "densite",
+    "log_collectif",
+    "log_individuel",
+    "plh_logements",
+    "nb_mutations",
+    "nb_permis_logements"
+  ],
+  "trained_at": "2026-07-03T14:05:24.731083",
+  "n_samples": 688
+}

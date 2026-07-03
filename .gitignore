@@ -1,0 +1,26 @@
+.env
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.ipynb_checkpoints/
+models/*.pkl
+models/*.joblib
+mlruns/
+.DS_Store
+Thumbs.db
+*.log
+
+# Données brutes
+DATA/
+
+# Dossier ignore
+ignore/
+
+# Environnement virtuel local
+.venv/

@@ -1,0 +1,128 @@
+# =============================================================================
+# P13 — Estimation des effectifs scolaires (Rennes Métropole)
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: p13_postgres
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - p13_network
+
+  etl:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.etl
+    container_name: p13_etl
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DATA_DIR: /data
+    volumes:
+      - ./DATA:/data:ro
+      - ./src:/app/src:ro
+      - ./database/scripts:/app/scripts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - p13_network
+    profiles:
+      - etl
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: p13_api
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      MODELS_DIR: /app/models
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MLFLOW_ALLOW_FILE_STORE: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src:ro
+      - ./models:/app/models
+      - mlruns_data:/app/mlruns
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - p13_network
+
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.streamlit
+    container_name: p13_streamlit
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./streamlit/app:/app/app:ro
+      - ./src:/app/src:ro
+      - ./models:/app/models:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - p13_network
+
+  jupyter:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.jupyter
+    container_name: p13_jupyter
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MLFLOW_ALLOW_FILE_STORE: "true"
+    ports:
+      - "8889:8888"
+    volumes:
+      - ./jupyter/notebooks:/app/notebooks
+      - ./DATA:/data:ro
+      - ./src:/app/src
+      - ./models:/app/models
+      - mlruns_data:/app/mlruns
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - p13_network
+
+volumes:
+  postgres_data:
+  mlruns_data:
+
+networks:
+  p13_network:
+    driver: bridge
