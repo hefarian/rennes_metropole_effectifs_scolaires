@@ -1,0 +1,156 @@
+# =========================================================================
+# GitHub Actions Workflow - MAIN Server Deploy
+# Deploy to PROD server (G:\GITHUB\P13-PROD) on Windows self-hosted runner
+# Ports: API 28000, Streamlit 28501, MLflow 25000, Jupyter 28888, Postgres 25433
+# =========================================================================
+
+name: "\U0001F534 Deploy PROD Server"
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'Documentation/**'
+  workflow_dispatch:
+
+env:
+  P13_PROD_DIR: g:\GITHUB\P13-PROD
+
+jobs:
+  deploy-prod-server:
+    name: Deploy PROD Server (28000/28501/25000/28888)
+    runs-on: [self-hosted, windows, p13-deploy]
+
+    steps:
+      - name: Deployment info
+        shell: powershell
+        run: |
+          Write-Host "PROD Server Deployment" -ForegroundColor Red
+          Write-Host "  Branch: ${{ github.ref_name }}" -ForegroundColor Cyan
+          Write-Host "  Commit: ${{ github.sha }}" -ForegroundColor Cyan
+          Write-Host "  By: ${{ github.actor }}" -ForegroundColor Cyan
+
+      - name: Sync code in PROD folder
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $TargetDir = "${{ env.P13_PROD_DIR }}"
+          $Branch = "main"
+          $RepoUrl = "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+          if (-not (Test-Path $TargetDir)) {
+            New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+          }
+
+          git config --global --add safe.directory $TargetDir
+          Set-Location $TargetDir
+
+          if (-not (Test-Path (Join-Path $TargetDir ".git"))) {
+            Write-Host "Initialisation du repo dans le dossier existant..." -ForegroundColor Yellow
+            git init
+            git remote add origin $RepoUrl
+          } else {
+            if ((git remote) -notcontains "origin") {
+              git remote add origin $RepoUrl
+            } else {
+              git remote set-url origin $RepoUrl
+            }
+          }
+
+          git fetch --prune origin $Branch
+          git checkout -B $Branch "origin/$Branch"
+
+      - name: Restore .env PROD (non versionne)
+        shell: powershell
+        run: |
+          $EnvFile = "${{ env.P13_PROD_DIR }}\.env"
+          if (-not (Test-Path $EnvFile)) {
+            Write-Host "Creation du .env PROD..." -ForegroundColor Yellow
+            @"
+          COMPOSE_PROJECT_NAME=p13_prod
+          POSTGRES_USER=p13_user
+          POSTGRES_PASSWORD=p13_password
+          POSTGRES_DB=p13_scolarite
+          POSTGRES_HOST=postgres
+          POSTGRES_PORT=5432
+          DATABASE_URL=postgresql://p13_user:p13_password@postgres:5432/p13_scolarite
+          API_HOST_PORT=28000
+          API_CONTAINER_PORT=28000
+          STREAMLIT_HOST_PORT=28501
+          STREAMLIT_CONTAINER_PORT=28501
+          JUPYTER_HOST_PORT=28888
+          JUPYTER_CONTAINER_PORT=28888
+          JUPYTER_TOKEN=p13_prod_token
+          MLFLOW_HOST_PORT=25000
+          MLFLOW_CONTAINER_PORT=25000
+          MLFLOW_TRACKING_URI=http://mlflow:25000
+          MODELS_DIR=/app/models
+"@ | Set-Content $EnvFile -Encoding UTF8
+            Write-Host ".env PROD cree." -ForegroundColor Green
+          } else {
+            Write-Host ".env PROD existant conserve." -ForegroundColor Cyan
+          }
+
+      - name: Stop PROD containers
+        shell: powershell
+        run: |
+          Set-Location "${{ env.P13_PROD_DIR }}"
+          Write-Host "Arret des conteneurs PROD..." -ForegroundColor Yellow
+          docker compose --project-name p13_prod --env-file .env down
+        continue-on-error: true
+
+      - name: Build PROD images
+        shell: powershell
+        run: |
+          Set-Location "${{ env.P13_PROD_DIR }}"
+          Write-Host "Build des images PROD..." -ForegroundColor Yellow
+          docker compose --project-name p13_prod --env-file .env build
+
+      - name: Start PROD server
+        shell: powershell
+        run: |
+          Set-Location "${{ env.P13_PROD_DIR }}"
+          Write-Host "Demarrage du serveur PROD..." -ForegroundColor Yellow
+          docker compose --project-name p13_prod --env-file .env up -d postgres api streamlit mlflow jupyter
+
+      - name: Wait for services
+        shell: powershell
+        run: Start-Sleep -Seconds 45
+
+      - name: Health check
+        shell: powershell
+        run: |
+          $maxAttempts = 30
+          $attempt = 0
+
+          Write-Host "Compose status:" -ForegroundColor Cyan
+          docker compose --project-name p13_prod --env-file "${{ env.P13_PROD_DIR }}\.env" ps
+
+          while ($attempt -lt $maxAttempts) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost:28000/health" -TimeoutSec 10 -UseBasicParsing
+              if ($response.StatusCode -eq 200) {
+                Write-Host "PROD API HEALTHY sur le port 28000" -ForegroundColor Green
+                exit 0
+              }
+            } catch {
+              $attempt++
+              Write-Host "Tentative $attempt/$maxAttempts echouee: $($_.Exception.Message)" -ForegroundColor Yellow
+              Start-Sleep -Seconds 2
+            }
+          }
+          Write-Host "Health check PROD echoue. Logs:" -ForegroundColor Red
+          docker compose --project-name p13_prod --env-file "${{ env.P13_PROD_DIR }}\.env" ps
+          docker compose --project-name p13_prod --env-file "${{ env.P13_PROD_DIR }}\.env" logs api --tail 200
+          exit 1
+
+      - name: Deployment success
+        shell: powershell
+        run: |
+          Write-Host "PROD Server deploye !" -ForegroundColor Green
+          Write-Host "  API Swagger: http://localhost:28000/docs" -ForegroundColor White
+          Write-Host "  Streamlit:   http://localhost:28501" -ForegroundColor White
+          Write-Host "  MLflow:      http://localhost:25000" -ForegroundColor White
+          Write-Host "  Jupyter:     http://localhost:28888" -ForegroundColor White

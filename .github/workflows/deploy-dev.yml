@@ -1,0 +1,156 @@
+# =========================================================================
+# GitHub Actions Workflow - DEV Server Deploy
+# Deploy to REC server (G:\GITHUB\P13-REC) on Windows self-hosted runner
+# Ports: API 18000, Streamlit 18501, MLflow 15000, Jupyter 18888, Postgres 15433
+# =========================================================================
+
+name: "\U0001F535 Deploy REC Server"
+
+on:
+  push:
+    branches:
+      - dev
+    paths-ignore:
+      - '**.md'
+      - 'Documentation/**'
+  workflow_dispatch:
+
+env:
+  P13_REC_DIR: g:\GITHUB\P13-REC
+
+jobs:
+  deploy-rec-server:
+    name: Deploy REC Server (18000/18501/15000/18888)
+    runs-on: [self-hosted, windows, p13-deploy]
+
+    steps:
+      - name: Deployment info
+        shell: powershell
+        run: |
+          Write-Host "REC Server Deployment" -ForegroundColor Blue
+          Write-Host "  Branch: ${{ github.ref_name }}" -ForegroundColor Cyan
+          Write-Host "  Commit: ${{ github.sha }}" -ForegroundColor Cyan
+          Write-Host "  By: ${{ github.actor }}" -ForegroundColor Cyan
+
+      - name: Sync code in REC folder
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $TargetDir = "${{ env.P13_REC_DIR }}"
+          $Branch = "dev"
+          $RepoUrl = "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+
+          if (-not (Test-Path $TargetDir)) {
+            New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+          }
+
+          git config --global --add safe.directory $TargetDir
+          Set-Location $TargetDir
+
+          if (-not (Test-Path (Join-Path $TargetDir ".git"))) {
+            Write-Host "Initialisation du repo dans le dossier existant..." -ForegroundColor Yellow
+            git init
+            git remote add origin $RepoUrl
+          } else {
+            if ((git remote) -notcontains "origin") {
+              git remote add origin $RepoUrl
+            } else {
+              git remote set-url origin $RepoUrl
+            }
+          }
+
+          git fetch --prune origin $Branch
+          git checkout -B $Branch "origin/$Branch"
+
+      - name: Restore .env REC (non versionne)
+        shell: powershell
+        run: |
+          $EnvFile = "${{ env.P13_REC_DIR }}\.env"
+          if (-not (Test-Path $EnvFile)) {
+            Write-Host "Creation du .env REC..." -ForegroundColor Yellow
+            @"
+          COMPOSE_PROJECT_NAME=p13_rec
+          POSTGRES_USER=p13_user
+          POSTGRES_PASSWORD=p13_password
+          POSTGRES_DB=p13_scolarite
+          POSTGRES_HOST=postgres
+          POSTGRES_PORT=5432
+          DATABASE_URL=postgresql://p13_user:p13_password@postgres:5432/p13_scolarite
+          API_HOST_PORT=18000
+          API_CONTAINER_PORT=18000
+          STREAMLIT_HOST_PORT=18501
+          STREAMLIT_CONTAINER_PORT=18501
+          JUPYTER_HOST_PORT=18888
+          JUPYTER_CONTAINER_PORT=18888
+          JUPYTER_TOKEN=p13_rec_token
+          MLFLOW_HOST_PORT=15000
+          MLFLOW_CONTAINER_PORT=15000
+          MLFLOW_TRACKING_URI=http://mlflow:15000
+          MODELS_DIR=/app/models
+"@ | Set-Content $EnvFile -Encoding UTF8
+            Write-Host ".env REC cree." -ForegroundColor Green
+          } else {
+            Write-Host ".env REC existant conserve." -ForegroundColor Cyan
+          }
+
+      - name: Stop REC containers
+        shell: powershell
+        run: |
+          Set-Location "${{ env.P13_REC_DIR }}"
+          Write-Host "Arret des conteneurs REC..." -ForegroundColor Yellow
+          docker compose --project-name p13_rec --env-file .env down
+        continue-on-error: true
+
+      - name: Build REC images
+        shell: powershell
+        run: |
+          Set-Location "${{ env.P13_REC_DIR }}"
+          Write-Host "Build des images REC..." -ForegroundColor Yellow
+          docker compose --project-name p13_rec --env-file .env build
+
+      - name: Start REC server
+        shell: powershell
+        run: |
+          Set-Location "${{ env.P13_REC_DIR }}"
+          Write-Host "Demarrage du serveur REC..." -ForegroundColor Yellow
+          docker compose --project-name p13_rec --env-file .env up -d postgres api streamlit mlflow jupyter
+
+      - name: Wait for services
+        shell: powershell
+        run: Start-Sleep -Seconds 45
+
+      - name: Health check
+        shell: powershell
+        run: |
+          $maxAttempts = 90
+          $attempt = 0
+
+          Write-Host "Compose status:" -ForegroundColor Cyan
+          docker compose --project-name p13_rec --env-file "${{ env.P13_REC_DIR }}\.env" ps
+
+          while ($attempt -lt $maxAttempts) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost:18000/health" -TimeoutSec 10 -UseBasicParsing
+              if ($response.StatusCode -eq 200) {
+                Write-Host "REC API HEALTHY sur le port 18000" -ForegroundColor Green
+                exit 0
+              }
+            } catch {
+              $attempt++
+              Write-Host "Tentative $attempt/$maxAttempts echouee: $($_.Exception.Message)" -ForegroundColor Yellow
+              Start-Sleep -Seconds 2
+            }
+          }
+          Write-Host "Health check REC echoue. Logs:" -ForegroundColor Red
+          docker compose --project-name p13_rec --env-file "${{ env.P13_REC_DIR }}\.env" ps
+          docker compose --project-name p13_rec --env-file "${{ env.P13_REC_DIR }}\.env" logs api --tail 200
+          exit 1
+
+      - name: Deployment success
+        shell: powershell
+        run: |
+          Write-Host "REC Server deploye !" -ForegroundColor Green
+          Write-Host "  API Swagger: http://localhost:18000/docs" -ForegroundColor White
+          Write-Host "  Streamlit:   http://localhost:18501" -ForegroundColor White
+          Write-Host "  MLflow:      http://localhost:15000" -ForegroundColor White
+          Write-Host "  Jupyter:     http://localhost:18888" -ForegroundColor White
