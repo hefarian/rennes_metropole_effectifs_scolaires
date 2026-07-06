@@ -27,3 +27,6 @@ ignore/
 
 # Environnement virtuel local
 .venv/
+
+# Backups base de données (fichiers SQL volumineux)
+backups/

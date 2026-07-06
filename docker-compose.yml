@@ -135,7 +135,9 @@ services:
 
 volumes:
   postgres_data:
+    name: ${COMPOSE_PROJECT_NAME:-p13}_postgres_data
   mlruns_data:
+    name: ${COMPOSE_PROJECT_NAME:-p13}_mlruns_data
 
 networks:
   p13_network:
