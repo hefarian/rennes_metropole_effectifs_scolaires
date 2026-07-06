@@ -114,13 +114,26 @@ def load_ecoles() -> None:
         return
 
     df = pd.concat(chunks, ignore_index=True)
+
+    # Dérivation du type d'école depuis la dénomination
+    def _type_ecole(denom: str) -> str:
+        d = str(denom).upper()
+        if "MATERNELLE" in d:
+            return "MATERNELLE"
+        if "ELEMENTAIRE" in d:
+            return "ELEMENTAIRE"
+        return "PRIMAIRE"  # école primaire = maternelle + élémentaire
+
     out = pd.DataFrame({
         "rentree": df["Rentrée scolaire"].astype(int),
         "code_insee": df["code_insee"],
         "nom_commune": df["Commune"],
         "numero_ecole": df["Numéro de l'école"].astype(str),
         "denomination": df["Dénomination principale"].fillna(""),
+        "type_ecole": df["Dénomination principale"].apply(_type_ecole),
         "secteur": df["Secteur"],
+        "rep": pd.to_numeric(df["REP"], errors="coerce").fillna(0).astype(int),
+        "rep_plus": pd.to_numeric(df["REP +"], errors="coerce").fillna(0).astype(int),
         "nb_classes": pd.to_numeric(df["Nombre total de classes"], errors="coerce"),
         "nb_eleves_total": pd.to_numeric(df["Nombre total d'élèves"], errors="coerce"),
         "nb_eleves_maternelle": pd.to_numeric(
@@ -135,6 +148,18 @@ def load_ecoles() -> None:
         "nb_eleves_cm1": pd.to_numeric(df["Nombre d'élèves en CM1 hors ULIS"], errors="coerce"),
         "nb_eleves_cm2": pd.to_numeric(df["Nombre d'élèves en CM2 hors ULIS"], errors="coerce"),
     })
+
+    # Validation : toutes les 43 communes doivent être présentes
+    missing = communes_set - set(out["code_insee"].unique())
+    if missing:
+        print(f"  ATTENTION : {len(missing)} communes sans école dans le fichier : {missing}")
+    else:
+        print(f"  Validation OK : les 43 communes de Rennes Métropole ont des données.")
+
+    # Répartition maternelle / élémentaire / primaire
+    print(f"  Types d'école : {out['type_ecole'].value_counts().to_dict()}")
+    print(f"  Écoles REP: {out['rep'].sum()} | REP+: {out['rep_plus'].sum()}")
+
     truncate_table("ecoles_effectifs")
     n = _to_db(out, "ecoles_effectifs")
     log_etl_run("ecoles_effectifs", n, "ok")

@@ -66,7 +66,10 @@ CREATE TABLE IF NOT EXISTS ecoles_effectifs (
     nom_commune          VARCHAR(100),
     numero_ecole         VARCHAR(20),
     denomination         VARCHAR(200),
+    type_ecole           VARCHAR(30),   -- MATERNELLE | ELEMENTAIRE | PRIMAIRE
     secteur              VARCHAR(20),
+    rep                  SMALLINT DEFAULT 0,  -- 1 = Réseau Education Prioritaire
+    rep_plus             SMALLINT DEFAULT 0,  -- 1 = REP+
     nb_classes           NUMERIC(6, 1),
     nb_eleves_total      NUMERIC(8, 1),
     nb_eleves_maternelle NUMERIC(8, 1),
@@ -81,16 +84,23 @@ CREATE TABLE IF NOT EXISTS ecoles_effectifs (
 CREATE INDEX IF NOT EXISTS idx_ecoles_rentree ON ecoles_effectifs(rentree);
 CREATE INDEX IF NOT EXISTS idx_ecoles_commune ON ecoles_effectifs(code_insee);
 
--- Vue agrégée commune / année
+-- Vue agrégée commune / année (toutes écoles confondues)
 CREATE OR REPLACE VIEW v_effectifs_commune_annee AS
 SELECT
     e.rentree,
     e.code_insee,
     c.nom_commune,
-    SUM(e.nb_classes)            AS nb_classes,
-    SUM(e.nb_eleves_total)       AS nb_eleves_total,
-    SUM(e.nb_eleves_maternelle)  AS nb_eleves_maternelle,
-    SUM(e.nb_eleves_elementaire) AS nb_eleves_elementaire
+    SUM(e.nb_classes)                                       AS nb_classes,
+    SUM(e.nb_eleves_total)                                  AS nb_eleves_total,
+    SUM(e.nb_eleves_maternelle)                             AS nb_eleves_maternelle,
+    SUM(e.nb_eleves_elementaire)                            AS nb_eleves_elementaire,
+    -- Agrégats par type d'école
+    SUM(CASE WHEN e.type_ecole = 'MATERNELLE' THEN e.nb_eleves_maternelle  ELSE 0 END) AS nb_eleves_ecoles_mat,
+    SUM(CASE WHEN e.type_ecole = 'ELEMENTAIRE' THEN e.nb_eleves_elementaire ELSE 0 END) AS nb_eleves_ecoles_elem,
+    -- Indicateurs REP
+    COUNT(CASE WHEN e.rep = 1 THEN 1 END)                  AS nb_ecoles_rep,
+    COUNT(CASE WHEN e.rep_plus = 1 THEN 1 END)             AS nb_ecoles_rep_plus,
+    COUNT(*)                                                AS nb_ecoles
 FROM ecoles_effectifs e
 LEFT JOIN communes c ON c.code_insee = e.code_insee
 GROUP BY e.rentree, e.code_insee, c.nom_commune;
