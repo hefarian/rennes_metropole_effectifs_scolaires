@@ -1,0 +1,5 @@
+# Arrête le service streamlit
+Set-Location $PSScriptRoot\..
+Write-Host "[P13] Arrêt de streamlit..." -ForegroundColor Cyan
+docker compose stop streamlit
+if ($LASTEXITCODE -eq 0) { Write-Host "[P13] streamlit arrêté." -ForegroundColor Green }
