@@ -55,7 +55,6 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       MODELS_DIR: /app/models
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
-      MLFLOW_ALLOW_FILE_STORE: "true"
     ports:
       - "8000:8000"
     volumes:
@@ -94,6 +93,22 @@ services:
     networks:
       - p13_network
 
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.13.0
+    container_name: p13_mlflow
+    command: >
+      mlflow server
+      --backend-store-uri /mlruns
+      --default-artifact-root /mlruns
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "5001:5000"
+    volumes:
+      - mlruns_data:/mlruns
+    networks:
+      - p13_network
+
   jupyter:
     build:
       context: .
@@ -104,7 +119,6 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       JUPYTER_TOKEN: ${JUPYTER_TOKEN}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
-      MLFLOW_ALLOW_FILE_STORE: "true"
     ports:
       - "8889:8888"
     volumes:

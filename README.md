@@ -10,6 +10,7 @@ Plateforme Data Science industrialisée pour **Rennes Métropole** : prédiction
 | **FastAPI** | 8000 | API REST de prédiction |
 | **Streamlit** | 8501 | Dashboard interactif |
 | **Jupyter Lab** | 8889 | Exploration & notebooks |
+| **MLflow UI** | 5001 | Tracking expériences ML |
 | **ETL** | — | Chargement CSV → PostgreSQL |
 
 ```
@@ -62,6 +63,7 @@ Ou via le dashboard Streamlit → **ML Training**.
 | http://localhost:8501 | Dashboard Streamlit |
 | http://localhost:8000/docs | API Swagger |
 | http://localhost:8889 | Jupyter Lab (token: `p13-jupyter`) |
+| http://localhost:5001 | MLflow UI |
 
 ## Cas d'usage métier
 

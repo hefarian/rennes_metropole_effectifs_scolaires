@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import RandomizedSearchCV, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -58,6 +58,46 @@ def get_model_candidates() -> dict:
     }
 
 
+PARAM_GRIDS: dict = {
+    "random_forest": {
+        "n_estimators": [50, 100, 200],
+        "max_depth": [4, 6, 8, None],
+        "min_samples_leaf": [1, 2, 4],
+        "max_features": ["sqrt", "log2", 0.5],
+    },
+    "gradient_boosting": {
+        "n_estimators": [50, 100, 200],
+        "max_depth": [3, 4, 5],
+        "learning_rate": [0.05, 0.1, 0.2],
+        "subsample": [0.8, 1.0],
+        "min_samples_leaf": [1, 2, 4],
+    },
+    "ridge": {
+        "model__alpha": [0.01, 0.1, 1.0, 10.0, 100.0],
+    },
+}
+
+
+def _tune_model(name: str, model, X_train: np.ndarray, y_train: np.ndarray) -> object:
+    """Lance un RandomizedSearchCV si un param_grid est défini pour ce modèle."""
+    grid = PARAM_GRIDS.get(name)
+    if grid is None:
+        model.fit(X_train, y_train)
+        return model
+    search = RandomizedSearchCV(
+        model,
+        param_distributions=grid,
+        n_iter=20,
+        cv=3,
+        scoring="r2",
+        random_state=42,
+        n_jobs=-1,
+        refit=True,
+    )
+    search.fit(X_train, y_train)
+    return search.best_estimator_
+
+
 def load_training_data(rentree: int | None = None) -> pd.DataFrame:
     query = "SELECT * FROM ml_dataset_commune WHERE nb_eleves_maternelle IS NOT NULL"
     if rentree:
@@ -92,23 +132,30 @@ def train_all(rentree: int | None = None) -> dict:
 
         for name, model in get_model_candidates().items():
             with mlflow.start_run(run_name=f"{target}_{name}"):
-                model.fit(X_train, y_train)
-                y_pred = model.predict(X_test)
+                tuned = _tune_model(name, model, X_train, y_train)
+                y_pred = tuned.predict(X_test)
                 m = _metrics(y_test, y_pred)
                 cv = cross_val_score(
-                    model, X, y, cv=min(5, len(df) // 3), scoring="r2", n_jobs=-1
+                    tuned, X, y, cv=min(5, len(df) // 3), scoring="r2", n_jobs=-1
                 )
                 mlflow.log_param("target", target)
                 mlflow.log_param("model", name)
+                # Log best hyperparams found
+                if hasattr(tuned, "get_params"):
+                    tuned_params = {
+                        k: v for k, v in tuned.get_params().items()
+                        if not hasattr(v, "__call__") and v is not None
+                    }
+                    mlflow.log_params({f"hp_{k}": str(v) for k, v in list(tuned_params.items())[:20]})
                 mlflow.log_metrics(m)
                 mlflow.log_metric("cv_r2_mean", float(cv.mean()))
-                mlflow.sklearn.log_model(model, "model")
+                mlflow.sklearn.log_model(tuned, "model")
 
                 target_results[name] = {**m, "cv_r2_mean": float(cv.mean())}
                 if m["r2"] > best_score:
                     best_score = m["r2"]
                     best_name = name
-                    best_model = model
+                    best_model = tuned
 
         model_path = MODELS_DIR / f"{target}_best.joblib"
         joblib.dump(best_model, model_path)

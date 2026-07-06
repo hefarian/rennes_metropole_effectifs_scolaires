@@ -71,7 +71,17 @@ def _children_from_housing(
     nb_pieces: int,
     taux_enfants_par_logement: float = 0.35,
 ) -> float:
-    """Estimation heuristique d'enfants scolarisables liés à un logement."""
+    """Estimation heuristique d'enfants scolarisables (0-11 ans) liés à un logement.
+
+    Calibration indicative (à affiner sur données locales DVF/effectifs) :
+    - taux_enfants_par_logement=0.35 : ratio moyen enfants 0-11 ans / logement
+      sur Rennes Métropole (source : ratio effectifs scolaires / nb logements communes)
+    - surface_factor : un T4+ (>80m²) accueille statistiquement plus d'enfants
+    - pieces_factor : proxy de la taille de ménage
+
+    TODO : calibrer ces constantes via régression sur (surface, pièces) → effectifs
+    en utilisant les données DVF + effectifs scolaires historiques.
+    """
     surface_factor = min(surface_m2 / 80.0, 2.0) if surface_m2 > 0 else 1.0
     pieces_factor = min(nb_pieces / 4.0, 1.5) if nb_pieces > 0 else 1.0
     return nb_logements * taux_enfants_par_logement * surface_factor * pieces_factor
