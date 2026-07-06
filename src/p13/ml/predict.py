@@ -46,8 +46,11 @@ def _get_commune_features(code_insee: str) -> dict:
                    COALESCE(p.nb, 0) AS nb_permis_logements
             FROM communes c
             LEFT JOIN stats_communes s ON s.code_insee = c.code_insee
-            LEFT JOIN (SELECT code_insee, COUNT(*) AS nb FROM mutations_dvf GROUP BY code_insee) dvf
-                ON dvf.code_insee = c.code_insee
+            LEFT JOIN (
+                SELECT code_insee, COUNT(*) AS nb FROM mutations_dvf
+                WHERE annee >= EXTRACT(YEAR FROM NOW())::int - 3
+                GROUP BY code_insee
+            ) dvf ON dvf.code_insee = c.code_insee
             LEFT JOIN (SELECT code_insee, SUM(logements_crees) AS nb FROM permis_construire
                        WHERE code_insee IS NOT NULL GROUP BY code_insee) p
                 ON p.code_insee = c.code_insee

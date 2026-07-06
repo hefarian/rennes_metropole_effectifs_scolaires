@@ -249,9 +249,14 @@ def build_ml_dataset() -> None:
         GROUP BY rentree, code_insee
     ),
     dvf AS (
-        SELECT code_insee, COUNT(*) AS nb_mutations
-        FROM mutations_dvf
-        GROUP BY code_insee
+        -- nb_mutations sur les 3 années précédant la rentrée scolaire
+        -- (date_mutation est NULL dans la source, on utilise annee)
+        SELECT d.code_insee, e2.rentree, COUNT(*) AS nb_mutations
+        FROM mutations_dvf d
+        JOIN (SELECT DISTINCT rentree, code_insee FROM ecoles_effectifs) e2
+          ON e2.code_insee = d.code_insee
+         AND d.annee BETWEEN e2.rentree - 3 AND e2.rentree - 1
+        GROUP BY d.code_insee, e2.rentree
     ),
     parcelles AS (
         SELECT COUNT(*) AS nb_logements_parcelle FROM logements_parcelle
@@ -285,7 +290,7 @@ def build_ml_dataset() -> None:
     FROM effectifs e
     JOIN communes c ON c.code_insee = e.code_insee
     LEFT JOIN stats_communes s ON s.code_insee = e.code_insee
-    LEFT JOIN dvf d ON d.code_insee = e.code_insee
+    LEFT JOIN dvf d ON d.code_insee = e.code_insee AND d.rentree = e.rentree
     LEFT JOIN permis p ON p.code_insee = e.code_insee
     """
     df = pd.read_sql(text(query), engine)
