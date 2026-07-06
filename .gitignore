@@ -19,6 +19,9 @@ Thumbs.db
 # Données brutes
 DATA/
 
+#Portfolio
+portfolio/
+
 # Dossier ignore
 ignore/
 
