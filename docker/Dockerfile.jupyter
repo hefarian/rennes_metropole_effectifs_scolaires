@@ -18,4 +18,4 @@ ENV MODELS_DIR=/app/models
 
 EXPOSE 8888
 
-CMD ["sh", "-c", "jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=${JUPYTER_TOKEN:-p13-jupyter} --notebook-dir=/app/notebooks"]
+CMD ["sh", "-c", "jupyter lab --ip=0.0.0.0 --port=${JUPYTER_CONTAINER_PORT:-8888} --no-browser --allow-root --IdentityProvider.token=${JUPYTER_TOKEN:-p13-jupyter} --ServerApp.allow_origin=* --notebook-dir=/app/notebooks"]

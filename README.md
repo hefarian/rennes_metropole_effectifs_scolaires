@@ -60,10 +60,10 @@ Ou via le dashboard Streamlit → **ML Training**.
 
 | URL | Accès |
 |-----|-------|
-| http://localhost:8501 | Dashboard Streamlit |
-| http://localhost:8000/docs | API Swagger |
-| http://localhost:8889 | Jupyter Lab (token: `p13-jupyter`) |
-| http://localhost:5001 | MLflow UI |
+| http://localhost:${API_HOST_PORT} (défaut 8000) | API Swagger |
+| http://localhost:${STREAMLIT_HOST_PORT} (défaut 8501) | Dashboard Streamlit |
+| http://localhost:${JUPYTER_HOST_PORT} (défaut 8889) | Jupyter Lab (token: `JUPYTER_TOKEN`) |
+| http://localhost:${MLFLOW_HOST_PORT} (défaut 5001) | MLflow UI |
 
 ## Cas d'usage métier
 

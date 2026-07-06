@@ -5,7 +5,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: p13_postgres
+    container_name: ${COMPOSE_PROJECT_NAME:-p13}_postgres
     env_file: .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -28,7 +28,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.etl
-    container_name: p13_etl
+    container_name: ${COMPOSE_PROJECT_NAME:-p13}_etl
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL}
@@ -49,14 +49,14 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    container_name: p13_api
+    container_name: ${COMPOSE_PROJECT_NAME:-p13}_api
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL}
       MODELS_DIR: /app/models
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
     ports:
-      - "8000:8000"
+      - "${API_HOST_PORT:-8000}:${API_CONTAINER_PORT:-8000}"
     volumes:
       - ./src:/app/src:ro
       - ./models:/app/models
@@ -65,7 +65,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${API_CONTAINER_PORT:-8000}/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -76,13 +76,13 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.streamlit
-    container_name: p13_streamlit
+    container_name: ${COMPOSE_PROJECT_NAME:-p13}_streamlit
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      API_URL: http://api:8000
+      API_URL: http://api:${API_CONTAINER_PORT:-8000}
     ports:
-      - "8501:8501"
+      - "${STREAMLIT_HOST_PORT:-8501}:${STREAMLIT_CONTAINER_PORT:-8501}"
     volumes:
       - ./streamlit/app:/app/app:ro
       - ./src:/app/src:ro
@@ -95,15 +95,15 @@ services:
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.13.0
-    container_name: p13_mlflow
+    container_name: ${COMPOSE_PROJECT_NAME:-p13}_mlflow
     command: >
       mlflow server
       --backend-store-uri /mlruns
       --default-artifact-root /mlruns
       --host 0.0.0.0
-      --port 5000
+      --port ${MLFLOW_CONTAINER_PORT:-5000}
     ports:
-      - "5001:5000"
+      - "${MLFLOW_HOST_PORT:-5001}:${MLFLOW_CONTAINER_PORT:-5000}"
     volumes:
       - mlruns_data:/mlruns
     networks:
@@ -113,14 +113,14 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.jupyter
-    container_name: p13_jupyter
+    container_name: ${COMPOSE_PROJECT_NAME:-p13}_jupyter
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL}
       JUPYTER_TOKEN: ${JUPYTER_TOKEN}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
     ports:
-      - "8889:8888"
+      - "${JUPYTER_HOST_PORT:-8889}:${JUPYTER_CONTAINER_PORT:-8888}"
     volumes:
       - ./jupyter/notebooks:/app/notebooks
       - ./DATA:/data:ro
