@@ -1,24 +1,28 @@
 {
   "target": "nb_eleves_maternelle",
-  "model": "gradient_boosting",
+  "model": "ridge",
   "metrics": {
-    "rmse": 48.82343643725248,
-    "mae": 23.5275447583929,
-    "r2": 0.9979692399449475,
-    "mape": 10.55986614866763,
-    "cv_r2_mean": 0.9980702321849023
+    "rmse": 55.52676122264262,
+    "mae": 42.35456620777611,
+    "r2": 0.864508944819193,
+    "mape": 17.793641317090366,
+    "cv_r2_mean": 0.9159719502825077,
+    "cv_r2_std": 0.04253621397951818,
+    "overfit_gap": 0.07277209427261988
   },
   "features": [
     "population",
     "pop_0_14_pct",
     "natalite",
-    "densite",
-    "log_collectif",
-    "log_individuel",
-    "plh_logements",
-    "nb_mutations",
-    "nb_permis_logements"
+    "nb_permis_logements",
+    "nb_enfants_0_14",
+    "taux_croissance_logements",
+    "densite_natalite",
+    "pct_collectif"
   ],
-  "trained_at": "2026-07-03T14:05:24.731083",
+  "use_engineering": true,
+  "use_spatial_cv": true,
+  "use_lags": false,
+  "trained_at": "2026-07-07T07:13:59.024899",
   "n_samples": 688
 }

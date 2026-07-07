@@ -1,24 +1,28 @@
 {
   "target": "nb_classes",
-  "model": "gradient_boosting",
+  "model": "ridge",
   "metrics": {
-    "rmse": 7.7231911407737295,
-    "mae": 2.750794494101992,
-    "r2": 0.9954854764447443,
-    "mape": 8.336918080003661,
-    "cv_r2_mean": 0.9847216215694177
+    "rmse": 6.041154893679618,
+    "mae": 4.164763701182909,
+    "r2": 0.8414831558956117,
+    "mape": 32.739940249753566,
+    "cv_r2_mean": 0.9168939239871783,
+    "cv_r2_std": 0.0472298393211651,
+    "overfit_gap": 0.06339602896013474
   },
   "features": [
     "population",
     "pop_0_14_pct",
     "natalite",
-    "densite",
-    "log_collectif",
-    "log_individuel",
-    "plh_logements",
-    "nb_mutations",
-    "nb_permis_logements"
+    "nb_permis_logements",
+    "nb_enfants_0_14",
+    "taux_croissance_logements",
+    "densite_natalite",
+    "pct_collectif"
   ],
-  "trained_at": "2026-07-03T14:05:56.694434",
+  "use_engineering": true,
+  "use_spatial_cv": true,
+  "use_lags": false,
+  "trained_at": "2026-07-07T07:14:06.652510",
   "n_samples": 688
 }

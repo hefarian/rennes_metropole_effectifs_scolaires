@@ -1,24 +1,28 @@
 {
   "target": "nb_eleves_elementaire",
-  "model": "gradient_boosting",
+  "model": "linear_regression",
   "metrics": {
-    "rmse": 101.59204235461941,
-    "mae": 42.118585995324956,
-    "r2": 0.9958406554808418,
-    "mape": 8.898119834242756,
-    "cv_r2_mean": 0.9919675774612406
+    "rmse": 57.740757747310944,
+    "mae": 45.632150820171134,
+    "r2": 0.9443786032468634,
+    "mape": 20.033870073052277,
+    "cv_r2_mean": 0.9425074451060883,
+    "cv_r2_std": 0.03766515891282634,
+    "overfit_gap": 0.04316240396393456
   },
   "features": [
     "population",
     "pop_0_14_pct",
     "natalite",
-    "densite",
-    "log_collectif",
-    "log_individuel",
-    "plh_logements",
-    "nb_mutations",
-    "nb_permis_logements"
+    "nb_permis_logements",
+    "nb_enfants_0_14",
+    "taux_croissance_logements",
+    "densite_natalite",
+    "pct_collectif"
   ],
-  "trained_at": "2026-07-03T14:05:40.256358",
+  "use_engineering": true,
+  "use_spatial_cv": true,
+  "use_lags": false,
+  "trained_at": "2026-07-07T07:14:02.718941",
   "n_samples": 688
 }

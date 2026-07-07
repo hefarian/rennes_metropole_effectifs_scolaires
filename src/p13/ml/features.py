@@ -45,3 +45,46 @@ TARGET_ELEMENTAIRE = "nb_eleves_elementaire"
 TARGET_CLASSES = "nb_classes"
 
 ALL_TARGETS = [TARGET_MATERNELLE, TARGET_ELEMENTAIRE, TARGET_CLASSES]
+
+# ---------------------------------------------------------------------------
+# Features d'interaction / ratio (add_interaction_features)
+# ---------------------------------------------------------------------------
+ENGINEERED_FEATURES = [
+    "nb_enfants_0_14",           # population × pop_0_14_pct / 100
+    "taux_croissance_logements",  # nb_permis_logements / population
+    "densite_natalite",           # densite × natalite
+    "pct_collectif",              # log_collectif / (log_collectif + log_individuel)
+]
+
+# Features de base + features d'interaction
+FEATURE_COLUMNS_ENGINEERED = FEATURE_COLUMNS + ENGINEERED_FEATURES
+
+# ---------------------------------------------------------------------------
+# Features de lag temporel (add_lag_features)
+# Les noms exacts sont générés dynamiquement par get_lag_feature_names()
+# ---------------------------------------------------------------------------
+LAG_LAGS = [1, 2, 3]
+LAG_WINDOWS = [3]
+
+# Features du modèle temporel complet
+FEATURE_COLUMNS_TEMPORAL = FEATURE_COLUMNS_ENGINEERED + [
+    # Lags pour chaque cible
+    "nb_eleves_maternelle_lag1",
+    "nb_eleves_maternelle_lag2",
+    "nb_eleves_maternelle_lag3",
+    "nb_eleves_maternelle_rolling_mean3",
+    "nb_eleves_maternelle_delta1",
+    "nb_eleves_elementaire_lag1",
+    "nb_eleves_elementaire_lag2",
+    "nb_eleves_elementaire_lag3",
+    "nb_eleves_elementaire_rolling_mean3",
+    "nb_eleves_elementaire_delta1",
+    "nb_classes_lag1",
+    "nb_classes_lag2",
+    "nb_classes_lag3",
+    "nb_classes_rolling_mean3",
+    "nb_classes_delta1",
+]
+
+# Colonne de groupe pour la validation spatiale
+SPATIAL_GROUP_COLUMN = "code_insee"

@@ -6,7 +6,7 @@ import streamlit as st
 sys.path.insert(0, "/app/src")
 
 st.set_page_config(
-    page_title="P13 — Effectifs Scolaires",
+    page_title="TerriSchool35",
     page_icon="🏫",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -14,11 +14,11 @@ st.set_page_config(
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-st.title("🏫 P13 — Estimation des Effectifs Scolaires")
+st.title("🏫 TerriSchool35 — Prédiction des Effectifs Scolaires")
 st.markdown(
     """
     **Plateforme de prédiction des effectifs scolaires** (maternelle & élémentaire)
-    pour **Rennes Métropole**.
+    pour les **43 communes de Rennes Métropole**.
 
     Anticipez les besoins en classes et enseignants lors de la livraison de nouveaux logements.
 

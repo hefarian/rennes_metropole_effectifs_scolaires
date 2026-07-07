@@ -11,7 +11,15 @@ import pandas as pd
 
 from p13.config import MODELS_DIR
 from p13.db import read_sql
-from p13.ml.features import FEATURE_COLUMNS, TARGET_CLASSES, TARGET_ELEMENTAIRE, TARGET_MATERNELLE
+from p13.ml.feature_engineering import add_interaction_features
+from p13.ml.features import (
+    ALL_FEATURE_COLUMNS,
+    ENGINEERED_FEATURES,
+    FEATURE_COLUMNS,
+    TARGET_CLASSES,
+    TARGET_ELEMENTAIRE,
+    TARGET_MATERNELLE,
+)
 
 
 def _load_model(target: str):
@@ -23,7 +31,25 @@ def _load_model(target: str):
     return joblib.load(path)
 
 
+def _load_model_features(target: str) -> list[str]:
+    """Lit la liste exacte de features depuis le metadata JSON du modèle sauvegardé.
+
+    Garantit que le vecteur X envoyé au modèle correspond exactement à ce qui a servi
+    à l'entraînement (4, 8 ou 9 features selon use_engineering/use_lags).
+    """
+    meta_path = MODELS_DIR / f"{target}_meta.json"
+    if meta_path.exists():
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        return meta.get("features", FEATURE_COLUMNS)
+    return FEATURE_COLUMNS
+
+
 def _get_commune_features(code_insee: str) -> dict:
+    """Récupère toutes les features disponibles pour une commune.
+
+    Retourne ALL_FEATURE_COLUMNS + ENGINEERED_FEATURES calculés à la volée.
+    predict_commune() choisira ensuite les colonnes utiles via _load_model_features().
+    """
     df = read_sql(
         """
         SELECT d.*, c.nom_commune
@@ -60,9 +86,48 @@ def _get_commune_features(code_insee: str) -> dict:
         )
     if df.empty:
         raise ValueError(f"Commune inconnue : {code_insee}")
-    row = df.iloc[0]
-    features = {col: float(row.get(col, 0) or 0) for col in FEATURE_COLUMNS}
+
+    # Calculer les features d'interaction (engineered)
+    df_eng = add_interaction_features(df)
+    row = df_eng.iloc[0]
+
+    all_cols = ALL_FEATURE_COLUMNS + ENGINEERED_FEATURES
+    features = {col: float(row.get(col, 0) or 0) for col in all_cols if col in df_eng.columns}
     return {"code_insee": code_insee, "nom_commune": row.get("nom_commune", ""), **features}
+
+
+def _get_lag_features(code_insee: str) -> dict:
+    """Récupère les features de lag temporel pour une commune.
+
+    Utilisé uniquement si le modèle a été entraîné avec use_lags=True.
+    Les lags sont calculés depuis les 4 dernières années d'historique.
+    """
+    df_hist = read_sql(
+        """
+        SELECT rentree, nb_eleves_maternelle, nb_eleves_elementaire, nb_classes
+        FROM ml_dataset_commune
+        WHERE code_insee = :code
+        ORDER BY rentree DESC
+        LIMIT 4
+        """,
+        {"code": code_insee},
+    )
+    if df_hist.empty:
+        return {}
+
+    df_hist = df_hist.sort_values("rentree")
+    lag_data: dict = {}
+
+    for target in [TARGET_MATERNELLE, TARGET_ELEMENTAIRE, TARGET_CLASSES]:
+        if target not in df_hist.columns:
+            continue
+        vals = df_hist[target].dropna().tolist()
+        for lag in [1, 2, 3]:
+            lag_data[f"{target}_lag{lag}"] = float(vals[-lag]) if len(vals) >= lag else 0.0
+        lag_data[f"{target}_rolling_mean3"] = float(np.mean(vals[-3:])) if vals else 0.0
+        lag_data[f"{target}_delta1"] = float(vals[-1] - vals[-2]) if len(vals) >= 2 else 0.0
+
+    return lag_data
 
 
 def _children_from_housing(
@@ -88,23 +153,46 @@ def _children_from_housing(
 
 
 def predict_commune(code_insee: str) -> dict:
-    features = _get_commune_features(code_insee)
-    X = np.array([[features[col] for col in FEATURE_COLUMNS]])
+    """Prédit les effectifs pour une commune.
 
-    maternelle = float(_load_model(TARGET_MATERNELLE).predict(X)[0])
-    elementaire = float(_load_model(TARGET_ELEMENTAIRE).predict(X)[0])
-    classes = float(_load_model(TARGET_CLASSES).predict(X)[0])
+    Lit les features requises depuis le metadata JSON de chaque modèle — s'adapte
+    automatiquement à use_engineering=True/False et use_lags=True/False.
+    """
+    base_features = _get_commune_features(code_insee)
+
+    # Pré-charger les lags une seule fois si au moins un modèle en a besoin
+    lag_features: dict = {}
+    for target in [TARGET_MATERNELLE, TARGET_ELEMENTAIRE, TARGET_CLASSES]:
+        mf = _load_model_features(target)
+        if any("_lag" in f or "_rolling" in f or "_delta" in f for f in mf):
+            lag_features = _get_lag_features(code_insee)
+            break
+
+    all_available = {**base_features, **lag_features}
+
+    predictions = {}
+    features_used: dict = {}
+
+    for target in [TARGET_MATERNELLE, TARGET_ELEMENTAIRE, TARGET_CLASSES]:
+        model = _load_model(target)
+        model_features = _load_model_features(target)
+        X = np.array([[float(all_available.get(f, 0.0)) for f in model_features]])
+        predictions[target] = float(model.predict(X)[0])
+        if target == TARGET_ELEMENTAIRE:
+            features_used = {f: all_available.get(f, 0.0) for f in model_features}
 
     return {
         "code_insee": code_insee,
-        "nom_commune": features["nom_commune"],
+        "nom_commune": base_features["nom_commune"],
         "predictions": {
-            "nb_eleves_maternelle": max(0, round(maternelle, 1)),
-            "nb_eleves_elementaire": max(0, round(elementaire, 1)),
-            "nb_classes_estimees": max(0, round(classes, 1)),
-            "nb_eleves_total": max(0, round(maternelle + elementaire, 1)),
+            "nb_eleves_maternelle": max(0, round(predictions[TARGET_MATERNELLE], 1)),
+            "nb_eleves_elementaire": max(0, round(predictions[TARGET_ELEMENTAIRE], 1)),
+            "nb_classes_estimees": max(0, round(predictions[TARGET_CLASSES], 1)),
+            "nb_eleves_total": max(0, round(
+                predictions[TARGET_MATERNELLE] + predictions[TARGET_ELEMENTAIRE], 1
+            )),
         },
-        "features_utilisees": {k: features[k] for k in FEATURE_COLUMNS},
+        "features_utilisees": features_used,
     }
 
 

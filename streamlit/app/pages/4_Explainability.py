@@ -9,11 +9,11 @@ from p13.config import MODELS_DIR
 from p13.db import read_sql
 from p13.ml.features import FEATURE_COLUMNS
 
-st.set_page_config(page_title="Explainability", page_icon="🔍", layout="wide")
-st.title("🔍 Explainability — Importance des Variables")
+st.set_page_config(page_title="TerriSchool35 — Explainability", page_icon="🔍", layout="wide")
+st.title("🔍 TerriSchool35 — Importance des Variables")
 
 st.markdown("""
-Interprétation des facteurs influençant les effectifs scolaires.
+Interprétation des facteurs influençant les prédictions d'effectifs scolaires sur Rennes Métropole.
 Analyse basée sur les corrélations du dataset d'entraînement et les métadonnées modèle.
 """)
 

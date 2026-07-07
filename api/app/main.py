@@ -1,4 +1,4 @@
-"""API FastAPI — Prédiction des effectifs scolaires."""
+"""TerriSchool35 — API de prédiction des effectifs scolaires."""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,12 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.app.routers import communes, health, ml, predictions
 
 app = FastAPI(
-    title="P13 — Effectifs Scolaires Rennes Métropole",
+    title="TerriSchool35 — Effectifs Scolaires Rennes Métropole",
     description=(
         "API de prédiction des effectifs scolaires (maternelle / élémentaire) "
-        "pour anticiper les besoins en classes lors de livraisons de logements."
+        "pour anticiper les besoins en classes lors de livraisons de logements sur le territoire de Rennes Métropole."
     ),
     version="1.0.0",
+    contact={
+        "name": "TerriSchool35",
+    },
 )
 
 app.add_middleware(

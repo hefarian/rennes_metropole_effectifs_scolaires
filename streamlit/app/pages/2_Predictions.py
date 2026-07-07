@@ -9,8 +9,8 @@ import streamlit as st
 sys.path.insert(0, "/app/src")
 from p13.db import read_sql
 
-st.set_page_config(page_title="Prédictions", page_icon="🔮", layout="wide")
-st.title("🔮 Prédictions d'Effectifs Scolaires")
+st.set_page_config(page_title="TerriSchool35 — Prédictions", page_icon="🔮", layout="wide")
+st.title("🔮 TerriSchool35 — Prédictions d'Effectifs Scolaires")
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
