@@ -4,7 +4,8 @@ import sys
 import streamlit as st
 
 sys.path.insert(0, "/app/src")
-
+environment_name = os.getenv("ENVIRONMENT_NAME", "DEV LOCAL")
+environment_color = os.getenv("ENVIRONMENT_COLOR", "#FF0000")
 st.set_page_config(
     page_title="TerriSchool35",
     page_icon="🏫",
@@ -14,7 +15,19 @@ st.set_page_config(
 
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-st.title("🏫 TerriSchool35 — Prédiction des Effectifs Scolaires")
+
+
+# Afficher le titre avec la couleur de l'environnement
+title_html = f"""
+<h1 style="color: {environment_color}; margin-bottom: 0;">
+    🏫 TerriSchool35 — Prédiction des Effectifs Scolaires
+    <span style="font-size: 0.7em; margin-left: 1rem; background: {environment_color}; color: white; padding: 0.3rem 0.8rem; border-radius: 0.3rem;">
+        {environment_name}
+    </span>
+</h1>
+"""
+st.markdown(title_html, unsafe_allow_html=True)
+
 st.markdown(
     """
     **Plateforme de prédiction des effectifs scolaires** (maternelle & élémentaire)
