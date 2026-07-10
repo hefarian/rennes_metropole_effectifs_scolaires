@@ -21,7 +21,7 @@ env:
 jobs:
   deploy-prod-server:
     name: Deploy PROD Server (28000/28501/25000/28888)
-    runs-on: [self-hosted, windows, p13-deploy]
+    runs-on: [self-hosted, windows, p13-prod]
 
     steps:
       - name: Deployment info
