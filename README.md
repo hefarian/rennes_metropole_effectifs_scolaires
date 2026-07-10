@@ -43,7 +43,7 @@ docker compose up -d postgres api streamlit jupyter
 ### 3. Charger les données (ETL)
 
 ```bash
-docker compose --profile etl run --rm etl
+docker compose --profile postgres --profile etl run --rm etl
 ```
 
 > **Note** : `Ficdep22.csv` (~3,5 Go) n'est pas chargé automatiquement. Utilisez Jupyter pour l'explorer par morceaux (filtre département 35).
