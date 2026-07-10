@@ -4,7 +4,7 @@
 # Ports: API 18000, Streamlit 18501, MLflow 15000, Jupyter 18888, Postgres 15433
 # =========================================================================
 
-name: "\U0001F535 Deploy REC Server"
+name: "🔵 Deploy REC Server"
 
 on:
   push:
@@ -68,26 +68,29 @@ jobs:
           $EnvFile = "${{ env.P13_REC_DIR }}\.env"
           if (-not (Test-Path $EnvFile)) {
             Write-Host "Creation du .env REC..." -ForegroundColor Yellow
-            @"
-          COMPOSE_PROJECT_NAME=p13_rec
-          POSTGRES_USER=p13_user
-          POSTGRES_PASSWORD=p13_password
-          POSTGRES_DB=p13_scolarite
-          POSTGRES_HOST=postgres
-          POSTGRES_PORT=5432
-          DATABASE_URL=postgresql://p13_user:p13_password@postgres:5432/p13_scolarite
-          API_HOST_PORT=18000
-          API_CONTAINER_PORT=18000
-          STREAMLIT_HOST_PORT=18501
-          STREAMLIT_CONTAINER_PORT=18501
-          JUPYTER_HOST_PORT=18888
-          JUPYTER_CONTAINER_PORT=18888
-          JUPYTER_TOKEN=p13_rec_token
-          MLFLOW_HOST_PORT=15000
-          MLFLOW_CONTAINER_PORT=15000
-          MLFLOW_TRACKING_URI=http://mlflow:15000
-          MODELS_DIR=/app/models
-"@ | Set-Content $EnvFile -Encoding UTF8
+            
+            $EnvContent = @(
+              "COMPOSE_PROJECT_NAME=p13_rec",
+              "POSTGRES_USER=p13_user",
+              "POSTGRES_PASSWORD=p13_password",
+              "POSTGRES_DB=p13_scolarite",
+              "POSTGRES_HOST=postgres",
+              "POSTGRES_PORT=5432",
+              "DATABASE_URL=postgresql://p13_user:p13_password@postgres:5432/p13_scolarite",
+              "API_HOST_PORT=18000",
+              "API_CONTAINER_PORT=18000",
+              "STREAMLIT_HOST_PORT=18501",
+              "STREAMLIT_CONTAINER_PORT=18501",
+              "JUPYTER_HOST_PORT=18888",
+              "JUPYTER_CONTAINER_PORT=18888",
+              "JUPYTER_TOKEN=p13_rec_token",
+              "MLFLOW_HOST_PORT=15000",
+              "MLFLOW_CONTAINER_PORT=15000",
+              "MLFLOW_TRACKING_URI=http://mlflow:15000",
+              "MODELS_DIR=/app/models"
+            ) -join "`r`n"
+
+            Set-Content -Path $EnvFile -Value $EnvContent -Encoding UTF8
             Write-Host ".env REC cree." -ForegroundColor Green
           } else {
             Write-Host ".env REC existant conserve." -ForegroundColor Cyan
