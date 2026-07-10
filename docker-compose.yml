@@ -11,14 +11,15 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      PGPORT: ${POSTGRES_CONTAINER_PORT}
+      PGPORT: ${POSTGRES_CONTAINER_PORT:-5432} # <-- INDIQUE À POSTGRES DE CHANGER DE PORT INTERNE
     ports:
       - "${POSTGRES_HOST_PORT:-5433}:${POSTGRES_CONTAINER_PORT:-5432}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # ON AJOUTE LE PORT -p ICI POUR QUE LE TEST VERIFIE LE BON PORT
+      test: ["CMD-SHELL", "pg_isready -p ${POSTGRES_CONTAINER_PORT:-5432} -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -58,6 +59,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       MODELS_DIR: /app/models
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      # Assurez-vous que votre application lit bien cette variable pour écouter sur le bon port !
+      PORT: ${API_CONTAINER_PORT:-8000} 
     ports:
       - "${API_HOST_PORT:-8000}:${API_CONTAINER_PORT:-8000}"
     volumes:
@@ -68,7 +71,8 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${API_CONTAINER_PORT:-8000}/health"]
+      # Utilisation de python3 pour tester dynamiquement le port configuré (18000 en recette)
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${API_CONTAINER_PORT:-8000}/health')"]
       interval: 10s
       timeout: 5s
       retries: 5
