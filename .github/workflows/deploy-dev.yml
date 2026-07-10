@@ -21,7 +21,7 @@ env:
 jobs:
   deploy-rec-server:
     name: Deploy REC Server (18000/18501/15000/18888)
-    runs-on: [self-hosted, windows, p13-recette]
+    runs-on: [self-hosted, Windows, X64]
 
     steps:
       - name: Deployment info
