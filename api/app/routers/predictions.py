@@ -40,6 +40,7 @@ async def predict_batch(file: UploadFile = File(...)):
     try:
         df = pd.read_csv(io.BytesIO(content), sep=None, engine="python")
         df.columns = [c.strip().lower() for c in df.columns]
+        df["code_insee"] = df["code_insee"].astype(str).str.strip().str.zfill(5)
         result = predict_batch_csv(df)
         return result.to_dict(orient="records")
     except Exception as exc:

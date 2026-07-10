@@ -23,6 +23,8 @@ services:
       retries: 10
     networks:
       - p13_network
+    profiles:
+      - postgres
 
   etl:
     build:
@@ -71,6 +73,8 @@ services:
       retries: 5
     networks:
       - p13_network
+    profiles:
+      - api
 
   streamlit:
     build:
@@ -92,6 +96,8 @@ services:
         condition: service_healthy
     networks:
       - p13_network
+    profiles:
+      - streamlit
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.13.0
@@ -108,6 +114,8 @@ services:
       - mlruns_data:/mlruns
     networks:
       - p13_network
+    profiles:
+      - mlflow
 
   jupyter:
     build:
@@ -132,6 +140,8 @@ services:
         condition: service_healthy
     networks:
       - p13_network
+    profiles:
+      - jupyter
 
 volumes:
   postgres_data:

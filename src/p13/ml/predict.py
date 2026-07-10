@@ -226,7 +226,8 @@ def predict_batch_csv(df: pd.DataFrame) -> pd.DataFrame:
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Colonnes manquantes : {missing}")
-
+    df = df.copy()
+    df["code_insee"] = df["code_insee"].astype(str).str.strip()
     rows = []
     for _, row in df.iterrows():
         nb_log = int(row.get("nb_logements", 1))

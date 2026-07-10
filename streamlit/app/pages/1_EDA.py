@@ -24,7 +24,7 @@ with tab1:
         st.warning("Aucune donnée. Lancez l'ETL : `docker compose --profile etl run --rm etl`")
     else:
         latest = df["rentree"].max()
-        st.subheader(f"Rentée {latest}")
+        st.subheader(f"Rentrée {latest}")
         latest_df = df[df["rentree"] == latest]
         fig = px.bar(
             latest_df.sort_values("nb_eleves_total", ascending=True).tail(20),
