@@ -61,4 +61,4 @@ jobs:
 
       - name: Build Docker images
         run: |
-          docker compose build api streamlit jupyter etl
+          docker compose build postgres api streamlit jupyter etl
