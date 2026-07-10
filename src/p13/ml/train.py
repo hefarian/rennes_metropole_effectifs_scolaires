@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from pathlib import Path
 
 import joblib
 import mlflow
@@ -30,7 +29,6 @@ from p13.ml.features import (
     ALL_TARGETS,
     ENGINEERED_FEATURES,
     FEATURE_COLUMNS,
-    FEATURE_COLUMNS_ENGINEERED,
     LAG_LAGS,
     LAG_WINDOWS,
     SPATIAL_GROUP_COLUMN,

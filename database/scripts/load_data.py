@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -154,7 +153,7 @@ def load_ecoles() -> None:
     if missing:
         print(f"  ATTENTION : {len(missing)} communes sans école dans le fichier : {missing}")
     else:
-        print(f"  Validation OK : les 43 communes de Rennes Métropole ont des données.")
+        print("  Validation OK : les 43 communes de Rennes Métropole ont des données.")
 
     # Répartition maternelle / élémentaire / primaire
     print(f"  Types d'école : {out['type_ecole'].value_counts().to_dict()}")
