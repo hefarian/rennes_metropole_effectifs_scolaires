@@ -185,12 +185,13 @@ def train_all(
     except Exception:
         mlflow.create_experiment("p13-effectifs")
         mlflow.set_experiment("p13-effectifs")
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+   
 
     df = load_training_data(rentree)
     if len(df) < 10:
         raise ValueError(f"Dataset insuffisant ({len(df)} lignes). Lancez d'abord l'ETL.")
 
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
     # Construction de la matrice de features
     df_enriched, feature_cols = build_feature_matrix(
         df,
