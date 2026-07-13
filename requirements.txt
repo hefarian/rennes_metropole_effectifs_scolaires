@@ -8,3 +8,9 @@ mlflow>=2.10.0
 shap>=0.44.0
 statsmodels>=0.14.0
 python-dotenv>=1.0.0
+fastapi
+uvicorn
+pydantic-settings
+python-multipart
+pytest
+pytest-cov

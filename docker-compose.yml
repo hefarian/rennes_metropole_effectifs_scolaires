@@ -66,6 +66,7 @@ services:
     volumes:
       - ./src:/app/src:ro
       - ./models:/app/models
+      - ./tests:/app/tests:ro
       - mlruns_data:/app/mlruns
     depends_on:
       postgres:
