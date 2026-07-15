@@ -13,7 +13,12 @@ import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import RandomizedSearchCV, cross_val_score, train_test_split
+from sklearn.model_selection import (
+    GroupKFold,
+    RandomizedSearchCV,
+    cross_val_score,
+    train_test_split,
+)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -35,6 +40,33 @@ from p13.ml.features import (
 )
 
 
+import statsmodels.api as sm
+from statsmodels.stats.diagnostic import het_breuschpagan, linear_rainbow
+from scipy.stats import shapiro
+
+def validate_linear_model(model, X, y):
+    """
+    Effectue les tests statistiques sur le modèle.
+    Retourne True si le modèle est 'valide', False sinon.
+    """
+    # Statsmodels nécessite une constante pour les tests
+    X_sm = sm.add_constant(X)
+    results = sm.OLS(y, X_sm).fit()
+    
+    # 1. Test de linéarité (Rainbow)
+    _, p_rainbow = linear_rainbow(results)
+    
+    # 2. Test d'homoscédasticité (Breusch-Pagan)
+    _, p_bp, _, _ = het_breuschpagan(results.resid, results.model.exog)
+    
+    # 3. Test de normalité des résidus (Shapiro-Wilk)
+    _, p_shapiro = shapiro(results.resid)
+    
+    # Logique de décision
+    # On rejette si la linéarité est rompue ou si les résidus sont problématiques
+    is_valid = (p_rainbow > 0.05) and (p_bp > 0.05) and (p_shapiro > 0.05)
+    
+    return is_valid, {"rainbow": p_rainbow, "bp": p_bp, "shapiro": p_shapiro}
 def _mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     mask = y_true != 0
     if not mask.any():
@@ -91,23 +123,52 @@ PARAM_GRIDS: dict = {
 }
 
 
-def _tune_model(name: str, model, X_train: np.ndarray, y_train: np.ndarray) -> object:
-    """Lance un RandomizedSearchCV si un param_grid est défini pour ce modèle."""
+def _tune_model(
+    name: str,
+    model,
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    groups_train: np.ndarray | None = None,
+    use_spatial_cv: bool = False,
+) -> object:
+    """Lance un RandomizedSearchCV si un param_grid est défini pour ce modèle.
+
+    Si use_spatial_cv est activé et que des groupes sont fournis, le tuning
+    utilise un GroupKFold (pas de fuite de données inter-communes pendant la
+    recherche d'hyperparamètres). Sinon, comportement inchangé (cv=3 aléatoire).
+    """
     grid = PARAM_GRIDS.get(name)
     if grid is None:
         model.fit(X_train, y_train)
         return model
-    search = RandomizedSearchCV(
-        model,
-        param_distributions=grid,
-        n_iter=20,
-        cv=3,
-        scoring="r2",
-        random_state=42,
-        n_jobs=-1,
-        refit=True,
-    )
-    search.fit(X_train, y_train)
+
+    if use_spatial_cv and groups_train is not None:
+        n_groups = len(np.unique(groups_train))
+        cv = GroupKFold(n_splits=min(5, n_groups))
+        search = RandomizedSearchCV(
+            model,
+            param_distributions=grid,
+            n_iter=20,
+            cv=cv,
+            scoring="r2",
+            random_state=42,
+            n_jobs=-1,
+            refit=True,
+        )
+        search.fit(X_train, y_train, groups=groups_train)
+    else:
+        search = RandomizedSearchCV(
+            model,
+            param_distributions=grid,
+            n_iter=20,
+            cv=3,
+            scoring="r2",
+            random_state=42,
+            n_jobs=-1,
+            refit=True,
+        )
+        search.fit(X_train, y_train)
+
     return search.best_estimator_
 
 
@@ -167,8 +228,8 @@ def build_feature_matrix(
 
 def train_all(
     rentree: int | None = None,
-    use_engineering: bool = False,
-    use_spatial_cv: bool = False,
+    use_engineering: bool = True,
+    use_spatial_cv: bool = True,
     use_lags: bool = False,
 ) -> dict:
     """Entraîne tous les modèles pour les 3 cibles.
@@ -185,7 +246,6 @@ def train_all(
     except Exception:
         mlflow.create_experiment("p13-effectifs")
         mlflow.set_experiment("p13-effectifs")
-   
 
     df = load_training_data(rentree)
     if len(df) < 10:
@@ -208,25 +268,36 @@ def train_all(
         groups = valid_df[SPATIAL_GROUP_COLUMN].values if SPATIAL_GROUP_COLUMN in valid_df.columns else None
 
         if use_spatial_cv and groups is not None:
-            X_train, X_test, y_train, y_test = (
-                lambda parts: (
-                    parts[0][feature_cols].values,
-                    parts[1][feature_cols].values,
-                    parts[0][target].values,
-                    parts[1][target].values,
-                )
-            )(spatial_train_test_split(valid_df, group_col=SPATIAL_GROUP_COLUMN))
+            df_train, df_test = spatial_train_test_split(valid_df, group_col=SPATIAL_GROUP_COLUMN)
+            X_train = df_train[feature_cols].values
+            X_test = df_test[feature_cols].values
+            y_train = df_train[target].values
+            y_test = df_test[target].values
+            groups_train = df_train[SPATIAL_GROUP_COLUMN].values
         else:
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42
             )
+            groups_train = None
 
         best_name, best_model, best_score = None, None, -np.inf
         target_results = {}
 
         for name, model in get_model_candidates().items():
             with mlflow.start_run(run_name=f"{target}_{name}"):
-                tuned = _tune_model(name, model, X_train, y_train)
+                tuned = _tune_model(
+                    name, model, X_train, y_train,
+                    groups_train=groups_train,
+                    use_spatial_cv=use_spatial_cv,
+                )
+
+                # Si c'est un modèle linéaire, on teste sa validité
+                if name in ["linear_regression"]:
+                    is_valid, stats = validate_linear_model(tuned, X_train, y_train)
+                    if not is_valid:
+                        print(f"Modèle {name} rejeté par les tests de diagnostic: {stats}")
+                        continue # Passe au modèle suivant (RandomForest, etc.)
+
                 y_pred = tuned.predict(X_test)
                 m = _metrics(y_test, y_pred)
 
@@ -243,6 +314,11 @@ def train_all(
                     mlflow.log_metric("spatial_cv_r2_mean", cv_mean)
                     mlflow.log_metric("spatial_cv_r2_std", cv_std)
                     mlflow.log_metric("spatial_overfit_gap", overfit_gap)
+                    # Score utilisé pour sélectionner le meilleur modèle :
+                    # la moyenne spatiale robuste, PAS le r2 du split unique
+                    # (m["r2"]), qui est bruité avec seulement quelques
+                    # communes dans le test (cf. notebook 06).
+                    selection_score = cv_mean
                 else:
                     cv = cross_val_score(
                         tuned, X, y, cv=min(5, len(df) // 3), scoring="r2", n_jobs=-1
@@ -250,6 +326,7 @@ def train_all(
                     cv_mean = float(cv.mean())
                     cv_std = float(cv.std())
                     overfit_gap = None
+                    selection_score = m["r2"]
 
                 mlflow.log_param("target", target)
                 mlflow.log_param("model", name)
@@ -265,6 +342,7 @@ def train_all(
                     mlflow.log_params({f"hp_{k}": str(v) for k, v in list(tuned_params.items())[:20]})
                 mlflow.log_metrics(m)
                 mlflow.log_metric("cv_r2_mean", cv_mean)
+                mlflow.log_metric("selection_score", selection_score)
                 try:
                     mlflow.sklearn.log_model(tuned, "model")
                 except Exception:
@@ -275,9 +353,10 @@ def train_all(
                     "cv_r2_mean": cv_mean,
                     "cv_r2_std": cv_std,
                     "overfit_gap": overfit_gap,
+                    "selection_score": selection_score,
                 }
-                if m["r2"] > best_score:
-                    best_score = m["r2"]
+                if selection_score > best_score:
+                    best_score = selection_score
                     best_name = name
                     best_model = tuned
 

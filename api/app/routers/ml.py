@@ -10,7 +10,7 @@ router = APIRouter()
 @router.post("/train", response_model=TrainResponse)
 def train_models():
     try:
-        results = train_all()
+        results = train_all(use_engineering=True, use_spatial_cv=True)
         return TrainResponse(status="ok", results=results)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -2,13 +2,14 @@
   "target": "nb_eleves_maternelle",
   "model": "ridge",
   "metrics": {
-    "rmse": 55.52676122264262,
-    "mae": 42.35456620777611,
-    "r2": 0.864508944819193,
-    "mape": 17.793641317090366,
-    "cv_r2_mean": 0.9159719502825077,
-    "cv_r2_std": 0.04253621397951818,
-    "overfit_gap": 0.07277209427261988
+    "rmse": 55.793998207703694,
+    "mae": 42.56594745596152,
+    "r2": 0.8632016345769851,
+    "mape": 17.984488459858543,
+    "cv_r2_mean": 0.9157614958508411,
+    "cv_r2_std": 0.04278414868248135,
+    "overfit_gap": 0.0729826159875806,
+    "selection_score": 0.9157614958508411
   },
   "features": [
     "population",
@@ -23,6 +24,6 @@
   "use_engineering": true,
   "use_spatial_cv": true,
   "use_lags": false,
-  "trained_at": "2026-07-07T07:13:59.024899",
+  "trained_at": "2026-07-15T10:28:51.133668",
   "n_samples": 688
 }

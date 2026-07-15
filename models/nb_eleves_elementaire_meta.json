@@ -1,14 +1,15 @@
 {
   "target": "nb_eleves_elementaire",
-  "model": "linear_regression",
+  "model": "ridge",
   "metrics": {
-    "rmse": 57.740757747310944,
-    "mae": 45.632150820171134,
-    "r2": 0.9443786032468634,
-    "mape": 20.033870073052277,
-    "cv_r2_mean": 0.9425074451060883,
-    "cv_r2_std": 0.03766515891282634,
-    "overfit_gap": 0.04316240396393456
+    "rmse": 56.328360170620954,
+    "mae": 44.454594580072104,
+    "r2": 0.9470664343775194,
+    "mape": 19.966001527456157,
+    "cv_r2_mean": 0.9409927348927812,
+    "cv_r2_std": 0.03988441284698777,
+    "overfit_gap": 0.04464972221888963,
+    "selection_score": 0.9409927348927812
   },
   "features": [
     "population",
@@ -23,6 +24,6 @@
   "use_engineering": true,
   "use_spatial_cv": true,
   "use_lags": false,
-  "trained_at": "2026-07-07T07:14:02.718941",
+  "trained_at": "2026-07-15T10:28:56.113567",
   "n_samples": 688
 }
